@@ -48,6 +48,7 @@ from msrest.serialization import Serializer
 
 from ._validators import MSI_LOCAL_ID
 from ._formatters import format_what_if_operation_result
+from ._live_deployment import LiveResourceGroupDeploymentLongRunningOperation
 from ._bicep import (
     run_bicep_command,
     is_bicep_file,
@@ -501,7 +502,8 @@ def deploy_arm_template_at_resource_group(cmd,
                                           no_wait=False, handle_extended_json_format=None,
                                           aux_subscriptions=None, aux_tenants=None, no_prompt=False,
                                           confirm_with_what_if=None, what_if_result_format=None,
-                                          what_if_exclude_change_types=None, template_spec=None, query_string=None):
+                                          what_if_exclude_change_types=None, template_spec=None, query_string=None,
+                                          live=None):
     if confirm_with_what_if:
         what_if_deploy_arm_template_at_resource_group(cmd,
                                                       resource_group_name=resource_group_name,
@@ -521,7 +523,8 @@ def deploy_arm_template_at_resource_group(cmd,
                                                   deployment_name=deployment_name, mode=mode, rollback_on_error=rollback_on_error,
                                                   validate_only=False, no_wait=no_wait,
                                                   aux_subscriptions=aux_subscriptions, aux_tenants=aux_tenants,
-                                                  no_prompt=no_prompt, template_spec=template_spec, query_string=query_string)
+                                                  no_prompt=no_prompt, template_spec=template_spec, query_string=query_string,
+                                                  live=live)
 
 
 # pylint: disable=unused-argument
@@ -543,7 +546,8 @@ def _deploy_arm_template_at_resource_group(cmd,
                                            template_file=None, template_uri=None, parameters=None,
                                            deployment_name=None, mode=None, rollback_on_error=None,
                                            validate_only=False, no_wait=False,
-                                           aux_subscriptions=None, aux_tenants=None, no_prompt=False, template_spec=None, query_string=None):
+                                           aux_subscriptions=None, aux_tenants=None, no_prompt=False, template_spec=None, query_string=None,
+                                           live=None):
     deployment_properties = _prepare_deployment_properties_unmodified(cmd, 'resourceGroup', template_file=template_file,
                                                                       template_uri=template_uri,
                                                                       parameters=parameters, mode=mode,
@@ -552,7 +556,7 @@ def _deploy_arm_template_at_resource_group(cmd,
 
     mgmt_client = _get_deployment_management_client(cmd.cli_ctx, aux_subscriptions=aux_subscriptions,
                                                     aux_tenants=aux_tenants, plug_pipeline=(template_uri is None and template_spec is None))
-
+    
     from azure.core.exceptions import HttpResponseError
     Deployment = cmd.get_models('Deployment')
     deployment = Deployment(properties=deployment_properties)
@@ -570,6 +574,19 @@ def _deploy_arm_template_at_resource_group(cmd,
         raise_subdivision_deployment_error(err_message)
     if validate_only:
         return validation_result
+
+    if live:
+        what_if_result = what_if_deploy_arm_template_at_resource_group(cmd,
+                                                      resource_group_name=resource_group_name,
+                                                      template_file=template_file, template_uri=template_uri,
+                                                      parameters=parameters, deployment_name=deployment_name, mode=mode,
+                                                      no_pretty_print=True,
+                                                      aux_tenants=aux_tenants, no_prompt=no_prompt,
+                                                      template_spec=template_spec, query_string=query_string)
+
+        deployment_poller = mgmt_client.begin_create_or_update(resource_group_name, deployment_name, deployment)
+        mgmt_resource_client = _resource_client_factory(cmd.cli_ctx)
+        return LiveResourceGroupDeploymentLongRunningOperation(resource_group_name, deployment_name, mgmt_resource_client, what_if_result)(deployment_poller)
 
     return sdk_no_wait(no_wait, mgmt_client.begin_create_or_update, resource_group_name, deployment_name, deployment)
 

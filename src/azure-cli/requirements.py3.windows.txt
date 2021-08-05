@@ -128,6 +128,7 @@ pytz==2019.1
 pywin32==300
 requests-oauthlib==1.2.0
 requests==2.25.1
+rich==10.6.0
 scp==0.13.2
 semver==2.13.0
 six==1.14.0

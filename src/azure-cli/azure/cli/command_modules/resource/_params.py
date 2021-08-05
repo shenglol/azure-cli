@@ -60,7 +60,9 @@ def load_arguments(self, _):
                                        'To get more information, please visit https://docs.microsoft.com/en-us/rest/api/resources/deployments/listatsubscriptionscope#uri-parameters')
     no_prompt = CLIArgumentType(arg_type=get_three_state_flag(), help='The option to disable the prompt of missing parameters for ARM template. '
                                 'When the value is true, the prompt requiring users to provide missing parameter will be ignored. The default value is false.')
-
+    deployment_live_type = CLIArgumentType(options_list=['--live'], action='store_true',
+                                           help='Show live status of the deployment.',
+                                           min_api='2019-07-01')
     deployment_what_if_result_format_type = CLIArgumentType(options_list=['--result-format', '-r'],
                                                             arg_type=get_enum_type(WhatIfResultFormat, "FullResourcePayloads"),
                                                             min_api='2019-07-01')
@@ -364,6 +366,7 @@ def load_arguments(self, _):
         c.argument('aux_tenants', nargs='+', options_list=['--aux-tenants'],
                    help='Auxiliary tenants which will be used during deployment across tenants.')
         c.argument('no_prompt', arg_type=no_prompt)
+        c.argument('live', arg_type=deployment_live_type)
         c.argument('confirm_with_what_if', arg_type=deployment_what_if_confirmation_type)
         c.argument('what_if_result_format', options_list=['--what-if-result-format', '-r'],
                    arg_type=deployment_what_if_result_format_type)
